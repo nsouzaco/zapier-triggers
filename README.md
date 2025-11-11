@@ -156,12 +156,44 @@ flake8 app tests
 mypy app
 ```
 
+## AWS Credentials & Lambda VPC
+
+### Lambda VPC Configuration
+
+When deployed to Lambda in a VPC, the application automatically uses IAM role credentials via the credential chain:
+1. Environment variables (none set in Lambda)
+2. `~/.aws/credentials` (doesn't exist in Lambda)
+3. IMDS via STS VPC endpoint → IAM role credentials
+
+**Important**: Do NOT set `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY` in Lambda environment variables. The code will automatically use the IAM role.
+
+### Local Development
+
+For local development with explicit credentials, set the `IS_LOCAL_DEV` environment variable:
+
+```bash
+export IS_LOCAL_DEV=true
+# Or in .env file:
+IS_LOCAL_DEV=true
+```
+
+This allows the code to use explicit credentials from your `.env` file or AWS credentials file for local testing.
+
+### Troubleshooting
+
+If you encounter `InvalidClientTokenId` or `UnrecognizedClientException` errors:
+- Ensure Lambda is in a VPC with STS VPC endpoint configured
+- Verify security groups allow traffic to VPC endpoints
+- Check IAM role has correct permissions
+- See `LAMBDA_VPC_CREDENTIAL_FIX.md` for detailed troubleshooting
+
 ## Documentation
 
 - **API Documentation**: Available at `/docs` when running the server
 - **Architecture**: See `memory-bank/systemPatterns.md`
 - **Technical Context**: See `memory-bank/techContext.md`
 - **Tasks**: See `tasks.md` for development roadmap
+- **Credential Fix**: See `CREDENTIAL_FIX_IMPLEMENTED.md` for Lambda VPC credential details
 
 ## License
 
