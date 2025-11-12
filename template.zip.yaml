@@ -1,0 +1,168 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Zapier Triggers API - Serverless Application (Zip Deployment)
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Environment:
+      Variables:
+        ENVIRONMENT: dev
+        LOG_LEVEL: INFO
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: zapier-triggers-api
+  Environment:
+    Type: String
+    Default: dev
+  SqsEventQueueUrl:
+    Type: String
+    Description: SQS Event Queue URL
+  SqsDlqUrl:
+    Type: String
+    Description: SQS Dead Letter Queue URL
+  DynamoDBTableName:
+    Type: String
+    Description: DynamoDB Events Table Name
+  RedisEndpoint:
+    Type: String
+    Description: ElastiCache Redis Endpoint
+  RdsEndpoint:
+    Type: String
+    Description: RDS PostgreSQL Endpoint
+  RdsPassword:
+    Type: String
+    NoEcho: true
+    Description: RDS Password
+  ApiRoleArn:
+    Type: String
+    Description: IAM Role ARN for API Lambda
+  WorkerRoleArn:
+    Type: String
+    Description: IAM Role ARN for Worker Lambda
+  VpcId:
+    Type: String
+    Default: ""
+    Description: VPC ID for Lambda VPC configuration (optional - not used when Lambda is outside VPC)
+  SubnetIds:
+    Type: CommaDelimitedList
+    Default: ""
+    Description: Subnet IDs for Lambda VPC configuration (optional - not used when Lambda is outside VPC)
+  LambdaSecurityGroupId:
+    Type: String
+    Default: ""
+    Description: Lambda Security Group ID (optional - not used when Lambda is outside VPC)
+
+Resources:
+  # Dependencies Layer
+  DependenciesLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub ${ProjectName}-${Environment}-dependencies
+      Description: Python dependencies for Zapier Triggers API
+      ContentUri: dependencies-layer.zip
+      CompatibleRuntimes:
+        - python3.11
+      CompatibleArchitectures:
+        - x86_64
+      RetentionPolicy: Retain
+
+  # API Lambda Function (Zip Deployment)
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${ProjectName}-${Environment}-api
+      Runtime: python3.11
+      Architectures:
+        - x86_64
+      Handler: lambda_handler_zip.handler
+      CodeUri: function.zip
+      Layers:
+        - !Ref DependenciesLayer
+      Role: !Ref ApiRoleArn
+      MemorySize: 1024
+      Timeout: 60
+      # VpcConfig removed - Lambda will access RDS via public endpoint
+      # VpcConfig:
+      #   SubnetIds: !Ref SubnetIds
+      #   SecurityGroupIds:
+      #     - !Ref LambdaSecurityGroupId
+      Environment:
+        Variables:
+          SQS_EVENT_QUEUE_URL: !Ref SqsEventQueueUrl
+          SQS_DLQ_URL: !Ref SqsDlqUrl
+          DYNAMODB_TABLE_NAME: !Ref DynamoDBTableName
+          REDIS_ENDPOINT: !Ref RedisEndpoint
+          RDS_ENDPOINT: !Ref RdsEndpoint
+          RDS_PASSWORD: !Ref RdsPassword
+          RDS_DATABASE: triggers_api
+          RDS_USERNAME: triggers_api
+          RDS_PORT: "5432"
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
+        RootEvent:
+          Type: Api
+          Properties:
+            Path: /
+            Method: ANY
+
+  # Worker Lambda Function (Zip Deployment)
+  WorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${ProjectName}-${Environment}-worker
+      Runtime: python3.11
+      Architectures:
+        - x86_64
+      Handler: lambda_worker_zip.handler
+      CodeUri: function.zip
+      Layers:
+        - !Ref DependenciesLayer
+      Role: !Ref WorkerRoleArn
+      MemorySize: 1024
+      Timeout: 300
+      # VpcConfig removed - Lambda will access RDS via public endpoint
+      # VpcConfig:
+      #   SubnetIds: !Ref SubnetIds
+      #   SecurityGroupIds:
+      #     - !Ref LambdaSecurityGroupId
+      Environment:
+        Variables:
+          SQS_EVENT_QUEUE_URL: !Ref SqsEventQueueUrl
+          SQS_DLQ_URL: !Ref SqsDlqUrl
+          DYNAMODB_TABLE_NAME: !Ref DynamoDBTableName
+          REDIS_ENDPOINT: !Ref RedisEndpoint
+          RDS_ENDPOINT: !Ref RdsEndpoint
+          RDS_PASSWORD: !Ref RdsPassword
+          RDS_DATABASE: triggers_api
+          RDS_USERNAME: triggers_api
+          RDS_PORT: "5432"
+      Events:
+        SqsEvent:
+          Type: SQS
+          Properties:
+            Queue: !Sub arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:zapier-triggers-api-${Environment}-events
+            BatchSize: 10
+            MaximumBatchingWindowInSeconds: 5
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod
+  ApiFunctionArn:
+    Description: API Lambda Function ARN
+    Value: !GetAtt ApiFunction.Arn
+  WorkerFunctionArn:
+    Description: Worker Lambda Function ARN
+    Value: !GetAtt WorkerFunction.Arn
+  DependenciesLayerArn:
+    Description: Dependencies Layer ARN
+    Value: !Ref DependenciesLayer
+

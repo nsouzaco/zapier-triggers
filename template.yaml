@@ -1,0 +1,85 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Zapier Triggers API - Serverless Application (Worker Only - API uses template.zip.yaml)
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Environment:
+      Variables:
+        ENVIRONMENT: dev
+        LOG_LEVEL: INFO
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: zapier-triggers-api
+  Environment:
+    Type: String
+    Default: dev
+  SqsEventQueueUrl:
+    Type: String
+    Description: SQS Event Queue URL
+  SqsDlqUrl:
+    Type: String
+    Description: SQS Dead Letter Queue URL
+  DynamoDBTableName:
+    Type: String
+    Description: DynamoDB Events Table Name
+  RedisEndpoint:
+    Type: String
+    Description: ElastiCache Redis Endpoint
+  RdsEndpoint:
+    Type: String
+    Description: RDS PostgreSQL Endpoint
+  RdsPassword:
+    Type: String
+    NoEcho: true
+    Description: RDS Password
+  ApiRoleArn:
+    Type: String
+    Description: IAM Role ARN for API Lambda
+  WorkerRoleArn:
+    Type: String
+    Description: IAM Role ARN for Worker Lambda
+
+Resources:
+  # NOTE: API Lambda Function has been moved to template.zip.yaml (zip deployment)
+  # This template is now only for the Worker function (container image)
+  
+  # Worker Lambda Function
+  WorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${ProjectName}-${Environment}-worker
+      PackageType: Image
+      ImageUri: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ProjectName}-${Environment}-worker:latest
+      Role: !Ref WorkerRoleArn
+      MemorySize: 1024
+      Timeout: 300
+      Environment:
+        Variables:
+          SQS_EVENT_QUEUE_URL: !Ref SqsEventQueueUrl
+          SQS_DLQ_URL: !Ref SqsDlqUrl
+          DYNAMODB_TABLE_NAME: !Ref DynamoDBTableName
+          REDIS_ENDPOINT: !Ref RedisEndpoint
+          RDS_ENDPOINT: !Ref RdsEndpoint
+          RDS_PASSWORD: !Ref RdsPassword
+          RDS_DATABASE: triggers_api
+          RDS_USERNAME: triggers_api
+          RDS_PORT: "5432"
+      Events:
+        SqsEvent:
+          Type: SQS
+          Properties:
+            Queue: !Sub arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:zapier-triggers-api-${Environment}-events
+            BatchSize: 10
+            MaximumBatchingWindowInSeconds: 5
+
+Outputs:
+  WorkerFunctionArn:
+    Description: Worker Lambda Function ARN
+    Value: !GetAtt WorkerFunction.Arn
+  # Note: API function outputs are in template.zip.yaml
+

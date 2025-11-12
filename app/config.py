@@ -34,14 +34,21 @@ class Settings(BaseSettings):
     sqs_dlq_url: Optional[str] = None
 
     # DynamoDB Configuration
-    dynamodb_events_table: str = "triggers-api-events-dev"
+    dynamodb_events_table: Optional[str] = None
+    dynamodb_table_name: Optional[str] = None  # Alias for dynamodb_events_table
 
     # RDS PostgreSQL Configuration
-    database_url: str = "postgresql://triggers_api:triggers_api_dev@localhost:5432/triggers_api_dev"
+    rds_endpoint: Optional[str] = None
+    rds_port: int = 5432
+    rds_database: str = "triggers_api"
+    rds_username: str = "triggers_api"
+    rds_password: Optional[str] = None
+    database_url: Optional[str] = None
     database_pool_size: int = 10
     database_max_overflow: int = 20
 
     # Redis Configuration
+    redis_endpoint: Optional[str] = None
     redis_host: str = "localhost"
     redis_port: int = 6379
     redis_db: int = 0
@@ -71,7 +78,7 @@ class Settings(BaseSettings):
     @property
     def is_development(self) -> bool:
         """Check if running in development environment."""
-        return self.environment.lower() == "development"
+        return self.environment.lower() in ("development", "dev")
 
     @property
     def is_production(self) -> bool:
@@ -81,9 +88,65 @@ class Settings(BaseSettings):
     @property
     def redis_url(self) -> str:
         """Get Redis connection URL."""
+        host = self.redis_endpoint or self.redis_host
         if self.redis_password:
-            return f"redis://:{self.redis_password}@{self.redis_host}:{self.redis_port}/{self.redis_db}"
-        return f"redis://{self.redis_host}:{self.redis_port}/{self.redis_db}"
+            return f"redis://:{self.redis_password}@{host}:{self.redis_port}/{self.redis_db}"
+        return f"redis://{host}:{self.redis_port}/{self.redis_db}"
+
+    @property
+    def postgresql_url(self) -> str:
+        """Get PostgreSQL connection URL."""
+        # ALWAYS use RDS - we don't use local database
+        # Priority: RDS configuration > explicit DATABASE_URL (if pointing to RDS)
+        import os
+        is_lambda = os.environ.get("AWS_LAMBDA_FUNCTION_NAME") is not None
+        is_aws = os.environ.get("AWS_EXECUTION_ENV") is not None or is_lambda
+        
+        # In AWS/Lambda, ALWAYS use RDS - never use local database
+        if is_aws:
+            if not (self.rds_endpoint and self.rds_username and self.rds_password):
+                raise ValueError(
+                    "Running in AWS but RDS configuration is missing. "
+                    "Set RDS_ENDPOINT, RDS_USERNAME, and RDS_PASSWORD environment variables."
+                )
+            # RDS endpoint may already include port (e.g., "hostname:5432")
+            # If it does, use it as-is; otherwise append the port
+            endpoint = self.rds_endpoint
+            if ":" not in endpoint.split("/")[-1]:  # Check if port is already in endpoint
+                endpoint = f"{endpoint}:{self.rds_port}"
+            return f"postgresql://{self.rds_username}:{self.rds_password}@{endpoint}/{self.rds_database}"
+        
+        # Local development: ALWAYS use RDS if configured
+        # We don't use local database - everything goes to RDS
+        if self.rds_endpoint and self.rds_username and self.rds_password:
+            endpoint = self.rds_endpoint
+            if ":" not in endpoint.split("/")[-1]:
+                endpoint = f"{endpoint}:{self.rds_port}"
+            return f"postgresql://{self.rds_username}:{self.rds_password}@{endpoint}/{self.rds_database}"
+        
+        # If DATABASE_URL is explicitly set and points to RDS, use it
+        # (This allows override for testing, but should point to RDS, not localhost)
+        if self.database_url:
+            # Warn if trying to use localhost
+            if "localhost" in self.database_url or "127.0.0.1" in self.database_url:
+                import warnings
+                warnings.warn(
+                    "DATABASE_URL points to localhost. This is not recommended. "
+                    "All operations should use RDS. Set RDS_ENDPOINT, RDS_USERNAME, and RDS_PASSWORD instead.",
+                    UserWarning
+                )
+            return self.database_url
+        
+        # No RDS configuration available - raise error instead of falling back to localhost
+        raise ValueError(
+            "RDS configuration is required. Set RDS_ENDPOINT, RDS_USERNAME, and RDS_PASSWORD environment variables. "
+            "Local database is not used - all operations must use AWS RDS."
+        )
+
+    @property
+    def dynamodb_table(self) -> str:
+        """Get DynamoDB table name."""
+        return self.dynamodb_table_name or self.dynamodb_events_table or "triggers-api-events-dev"
 
 
 @lru_cache()

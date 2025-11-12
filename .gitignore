@@ -65,3 +65,8 @@ Thumbs.db
 local/
 temp/
 
+# Lambda deployment artifacts
+lambda-layer/
+dependencies-layer.zip
+function.zip
+

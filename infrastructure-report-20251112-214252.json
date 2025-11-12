@@ -1,0 +1,175 @@
+{
+  "timestamp": "2025-11-12T21:42:52Z",
+  "region": "us-east-1",
+  "project": "zapier-triggers-api",
+  "environment": "dev",
+  "vpc_id": "vpc-03cd6462b46350c8e",
+  "vpc": {
+  "vpc_id": "vpc-03cd6462b46350c8e",
+  "cidr_block": "172.31.0.0/16",
+  "state": "available",
+  "enable_dns_hostnames": false,
+  "enable_dns_support": false,
+  "tags": {}
+},
+  "subnets": [
+  {
+    "subnet_id": "subnet-0ec51c4b01051563c",
+    "cidr_block": "172.31.80.0/20",
+    "availability_zone": "us-east-1b",
+    "map_public_ip_on_launch": true,
+    "state": "available",
+    "tags": {}
+  },
+  {
+    "subnet_id": "subnet-0dcbb744fa27d655a",
+    "cidr_block": "172.31.0.0/20",
+    "availability_zone": "us-east-1a",
+    "map_public_ip_on_launch": true,
+    "state": "available",
+    "tags": {}
+  },
+  {
+    "subnet_id": "subnet-022c1189cdbc888b5",
+    "cidr_block": "172.31.16.0/20",
+    "availability_zone": "us-east-1c",
+    "map_public_ip_on_launch": true,
+    "state": "available",
+    "tags": {}
+  },
+  {
+    "subnet_id": "subnet-06bf4817afa42342a",
+    "cidr_block": "172.31.32.0/20",
+    "availability_zone": "us-east-1d",
+    "map_public_ip_on_launch": true,
+    "state": "available",
+    "tags": {}
+  },
+  {
+    "subnet_id": "subnet-00b7d6dbd598ca211",
+    "cidr_block": "172.31.48.0/20",
+    "availability_zone": "us-east-1e",
+    "map_public_ip_on_launch": true,
+    "state": "available",
+    "tags": {}
+  },
+  {
+    "subnet_id": "subnet-05537dea7b585b315",
+    "cidr_block": "172.31.64.0/20",
+    "availability_zone": "us-east-1f",
+    "map_public_ip_on_launch": true,
+    "state": "available",
+    "tags": {}
+  }
+],
+  "route_tables": [
+  {
+    "route_table_id": "rtb-0a6d80ef011971490",
+    "routes": [
+      {
+        "destination": "172.31.0.0/16",
+        "state": "active",
+        "target": "Gateway: local"
+      },
+      {
+        "destination": "0.0.0.0/0",
+        "state": "active",
+        "target": "NAT Gateway: nat-02461481993ae4920"
+      },
+      {
+        "destination": "default",
+        "state": "active",
+        "target": "Gateway: vpce-0e8cac5b404dccac5"
+      }
+    ],
+    "associations": [
+      {
+        "association_id": "rtbassoc-06e4cc8ccf8087e8c",
+        "main": false,
+        "subnet_id": "subnet-0ec51c4b01051563c"
+      }
+    ],
+    "tags": {
+      "Name": "tutor-scoring-public-rt"
+    }
+  },
+  {
+    "route_table_id": "rtb-0e7728f9b4dbda8ff",
+    "routes": [
+      {
+        "destination": "172.31.0.0/16",
+        "state": "active",
+        "target": "Gateway: local"
+      },
+      {
+        "destination": "0.0.0.0/0",
+        "state": "active",
+        "target": "Gateway: igw-06dbf36bda309f0dc"
+      }
+    ],
+    "associations": [
+      {
+        "association_id": "rtbassoc-0c2c095c63d451a88",
+        "main": false,
+        "subnet_id": "subnet-0dcbb744fa27d655a"
+      }
+    ],
+    "tags": {}
+  },
+  {
+    "route_table_id": "rtb-0aa28bb819518039d",
+    "routes": [
+      {
+        "destination": "172.31.0.0/16",
+        "state": "active",
+        "target": "Gateway: local"
+      },
+      {
+        "destination": "default",
+        "state": "active",
+        "target": "Gateway: vpce-0e8cac5b404dccac5"
+      }
+    ],
+    "associations": [],
+    "tags": {
+      "Name": "tutor-scoring-private-rt"
+    }
+  },
+  {
+    "route_table_id": "rtb-0b879b2a8131c2b93",
+    "routes": [
+      {
+        "destination": "10.0.1.0/24",
+        "state": "active",
+        "target": "local"
+      },
+      {
+        "destination": "172.31.0.0/16",
+        "state": "active",
+        "target": "Gateway: local"
+      },
+      {
+        "destination": "10.0.0.0/16",
+        "state": "active",
+        "target": "local"
+      },
+      {
+        "destination": "0.0.0.0/0",
+        "state": "active",
+        "target": "Gateway: igw-06dbf36bda309f0dc"
+      },
+      {
+        "destination": "default",
+        "state": "active",
+        "target": "Gateway: vpce-0e8cac5b404dccac5"
+      }
+    ],
+    "associations": [
+      {
+        "association_id": "rtbassoc-0aeca2dc059179e11",
+        "main": true
+      }
+    ],
+    "tags": {}
+  }
+],
