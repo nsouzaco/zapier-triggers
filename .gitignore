@@ -66,6 +66,9 @@ Thumbs.db
 local/
 temp/
 
+# Memory Bank (keep local only)
+memory-bank/
+
 # Lambda deployment artifacts
 lambda-layer/
 dependencies-layer.zip
