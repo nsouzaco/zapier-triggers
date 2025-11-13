@@ -1,22 +1,22 @@
-version: '3.8'
-
 services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: triggers-api-postgres
-    environment:
-      POSTGRES_USER: triggers_api
-      POSTGRES_PASSWORD: triggers_api_dev
-      POSTGRES_DB: triggers_api_dev
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U triggers_api"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+  # NOTE: PostgreSQL is NOT used - all database operations use AWS RDS
+  # This service is kept for reference but should not be started
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: triggers-api-postgres
+  #   environment:
+  #     POSTGRES_USER: triggers_api
+  #     POSTGRES_PASSWORD: triggers_api_dev
+  #     POSTGRES_DB: triggers_api_dev
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U triggers_api"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
 
   redis:
     image: redis:7-alpine
@@ -35,7 +35,7 @@ services:
     image: amazon/dynamodb-local:latest
     container_name: triggers-api-dynamodb
     ports:
-      - "8000:8000"
+      - "8001:8000"
     command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-inMemory"]
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8000 || exit 1"]

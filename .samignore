@@ -1,0 +1,72 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+tests/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+docs/
+memory-bank/
+
+# Terraform
+terraform/
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+.aws-sam/
+
+# Scripts (keep only what's needed)
+scripts/setup-*.sh
+scripts/get-aws-outputs.sh
+scripts/update-env-from-terraform.sh
+scripts/setup-dynamodb-local.py
+
+# Alembic (not needed in Lambda)
+alembic/
+alembic.ini
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# SAM
+template.yaml
+.samignore
+

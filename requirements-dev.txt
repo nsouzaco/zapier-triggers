@@ -1,0 +1,14 @@
+# Minimal requirements for testing
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+python-dotenv
+python-json-logger
+python-multipart
+pytest
+pytest-asyncio
+pytest-cov
+pytest-httpx
+httpx
+
