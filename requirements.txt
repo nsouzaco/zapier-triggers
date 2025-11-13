@@ -17,6 +17,9 @@ redis==5.0.1
 # HTTP Client
 httpx==0.25.2
 
+# Email Service
+resend==2.1.0
+
 # Lambda support
 mangum==0.17.0
 

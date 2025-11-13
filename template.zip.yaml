@@ -37,6 +37,10 @@ Parameters:
     Type: String
     NoEcho: true
     Description: RDS Password
+  ResendApiKey:
+    Type: String
+    NoEcho: true
+    Description: Resend API Key for email notifications
   ApiRoleArn:
     Type: String
     Description: IAM Role ARN for API Lambda
@@ -144,6 +148,7 @@ Resources:
           RDS_DATABASE: triggers_api
           RDS_USERNAME: triggers_api
           RDS_PORT: "5432"
+          RESEND_API_KEY: !Ref ResendApiKey
       Events:
         SqsEvent:
           Type: SQS

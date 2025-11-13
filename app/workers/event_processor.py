@@ -6,6 +6,7 @@ from typing import Dict, Any
 
 from app.config import get_settings
 from app.core.matching import EventMatcher
+from app.services.email_service import email_service
 from app.services.event_storage import event_storage
 from app.services.subscription_service import subscription_service
 from app.services.webhook_service import webhook_service
@@ -56,6 +57,25 @@ class EventProcessor:
         """
         try:
             logger.info(f"Starting event processing: customer_id={customer_id}, event_id={event_id}")
+
+            # Check if this is an urgent Jira ticket event and send email FIRST
+            # (before subscription matching, so email is sent even if no subscriptions match)
+            event_type = payload.get("event_type", "")
+            if event_type == "jira.ticket.urgent":
+                jira_ticket_text = payload.get("jira_ticket_text", "")
+                urgency_reason = payload.get("urgency_reason", "Urgent Jira ticket detected")
+                
+                if jira_ticket_text:
+                    logger.info(f"Sending urgent Jira ticket email for event {event_id}")
+                    email_sent = await email_service.send_urgent_jira_notification(
+                        jira_ticket_text=jira_ticket_text,
+                        urgency_reason=urgency_reason,
+                        event_id=event_id,
+                    )
+                    if email_sent:
+                        logger.info(f"Urgent Jira ticket email sent successfully for event {event_id}")
+                    else:
+                        logger.warning(f"Failed to send urgent Jira ticket email for event {event_id}")
 
             # Get subscriptions for customer
             logger.info(f"Fetching subscriptions for customer: {customer_id}")
