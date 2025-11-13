@@ -75,6 +75,10 @@ class Settings(BaseSettings):
     api_key_header: str = "Authorization"
     api_key_prefix: str = "Bearer"
 
+    # Email Service (Resend)
+    resend_api_key: Optional[str] = None
+    urgent_jira_email_recipient: str = "notifications@example.com"
+
     @property
     def is_development(self) -> bool:
         """Check if running in development environment."""

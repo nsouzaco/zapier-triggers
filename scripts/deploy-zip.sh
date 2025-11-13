@@ -82,6 +82,9 @@ LAMBDA_SG_ID=$(echo $TERRAFORM_OUTPUTS | jq -r '.lambda_security_group_id.value'
 # Get RDS password from terraform.tfvars
 RDS_PASSWORD=$(grep rds_password terraform/terraform.tfvars | cut -d'"' -f2)
 
+# Get Resend API key from .env file
+RESEND_API_KEY=$(grep RESEND_API_KEY .env 2>/dev/null | cut -d'=' -f2 || echo "")
+
 if [ -z "$SQS_QUEUE_URL" ] || [ "$SQS_QUEUE_URL" = "null" ]; then
     echo -e "${RED}❌ Failed to get Terraform outputs. Make sure infrastructure is deployed.${NC}"
     exit 1
@@ -103,6 +106,7 @@ sam build \
         RedisEndpoint=$REDIS_ENDPOINT \
         RdsEndpoint=$RDS_ENDPOINT \
         RdsPassword=$RDS_PASSWORD \
+        ResendApiKey=$RESEND_API_KEY \
         ApiRoleArn=$API_ROLE_ARN \
         WorkerRoleArn=$WORKER_ROLE_ARN
         # VPC parameters removed - Lambda functions no longer in VPC
@@ -129,6 +133,7 @@ sam deploy \
         RedisEndpoint=$REDIS_ENDPOINT \
         RdsEndpoint=$RDS_ENDPOINT \
         RdsPassword=$RDS_PASSWORD \
+        ResendApiKey=$RESEND_API_KEY \
         ApiRoleArn=$API_ROLE_ARN \
         WorkerRoleArn=$WORKER_ROLE_ARN
         # VPC parameters removed - Lambda functions no longer in VPC
@@ -136,7 +141,7 @@ sam deploy \
         # SubnetIds=$SUBNET_IDS \
         # LambdaSecurityGroupId=$LAMBDA_SG_ID
 
-    echo -e "${GREEN}✅ Lambda deployment complete!${NC}"
+echo -e "${GREEN}✅ Lambda deployment complete!${NC}"
 
 # Get API URL
 API_URL=$(aws cloudformation describe-stacks \
