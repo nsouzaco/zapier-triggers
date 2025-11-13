@@ -37,6 +37,7 @@ ENV/
 .env
 .env.local
 .env.*.local
+.env.backup
 
 # Testing
 .pytest_cache/
@@ -64,4 +65,9 @@ Thumbs.db
 *.sqlite
 local/
 temp/
+
+# Lambda deployment artifacts
+lambda-layer/
+dependencies-layer.zip
+function.zip
 

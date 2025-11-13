@@ -23,7 +23,8 @@ The system is built on AWS-native services with an asynchronous, event-driven ar
 - **API Layer**: FastAPI on AWS Lambda or ECS Fargate
 - **Message Queue**: AWS SQS for durable event storage
 - **Processing Workers**: AWS Lambda or ECS for event processing
-- **Storage**: DynamoDB (events), RDS PostgreSQL (subscriptions), ElastiCache Redis (caching)
+- **Storage**: DynamoDB (events), **AWS RDS PostgreSQL** (subscriptions & API keys), ElastiCache Redis (caching)
+- **Note**: All database operations use **AWS RDS only** - local database is not used
 - **Delivery**: Webhook callbacks to Zapier workflow execution engine
 
 ## Development Setup
@@ -62,7 +63,8 @@ The system is built on AWS-native services with an asynchronous, event-driven ar
 
 5. **Start local services**
    ```bash
-   docker-compose up -d
+   docker-compose up -d redis dynamodb-local
+   # Note: PostgreSQL service is commented out - we use AWS RDS only
    ```
 
 6. **Run database migrations**
