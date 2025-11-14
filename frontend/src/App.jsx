@@ -2,22 +2,19 @@ import { useState, useEffect } from 'react'
 import OpenAI from 'openai'
 import './App.css'
 
-// Default API URL - can be overridden via environment variable
-const API_URL = import.meta.env.VITE_API_URL || 'https://4256sf6wc3.execute-api.us-east-1.amazonaws.com/Prod'
+// Demo Backend URL (Railway deployment) - can be overridden via environment variable
+// The demo backend handles all communication with the production Triggers API
+const DEMO_API_URL = import.meta.env.VITE_DEMO_API_URL || 'https://your-demo-backend.up.railway.app'
 
 function App() {
   const [apiKey, setApiKey] = useState(() => {
     return localStorage.getItem('zapier_api_key') || ''
   })
-  const [eventPayload, setEventPayload] = useState(JSON.stringify({
-    event_type: 'order.created',
-    order_id: '12345',
-    amount: 99.99,
-    customer: {
-      name: 'John Doe',
-      email: 'john@example.com'
-    }
-  }, null, 2))
+  // Demo backend form fields
+  const [documentType, setDocumentType] = useState('support_ticket')
+  const [priority, setPriority] = useState('high')
+  const [description, setDescription] = useState('Customer is very angry about order')
+  const [customerEmail, setCustomerEmail] = useState('customer@example.com')
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -46,22 +43,18 @@ function App() {
     }
   }, [openaiApiKey])
 
-  // Load events on mount and when API key changes
+  // Load events on mount
   useEffect(() => {
-    if (apiKey) {
-      loadEvents()
-    }
-  }, [apiKey])
+    loadEvents()
+  }, [])
 
   const loadEvents = async () => {
-    if (!apiKey) return
-    
     try {
       setLoading(true)
       setError(null)
-      const response = await fetch(`${API_URL}/api/v1/inbox`, {
+      // Call demo backend which proxies to production Triggers API
+      const response = await fetch(`${DEMO_API_URL}/demo/inbox`, {
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json'
         }
       })
@@ -91,16 +84,8 @@ function App() {
   }
 
   const submitEvent = async () => {
-    if (!apiKey) {
-      setError('Please enter your API key')
-      return
-    }
-
-    let payload
-    try {
-      payload = JSON.parse(eventPayload)
-    } catch (err) {
-      setError('Invalid JSON payload: ' + err.message)
+    if (!documentType || !priority || !description || !customerEmail) {
+      setError('Please fill in all fields')
       return
     }
 
@@ -109,28 +94,37 @@ function App() {
       setError(null)
       setSuccess(null)
 
-      const response = await fetch(`${API_URL}/api/v1/events`, {
+      // Call demo backend /demo/trigger endpoint
+      const response = await fetch(`${DEMO_API_URL}/demo/trigger`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ payload })
+        body: JSON.stringify({
+          document_type: documentType,
+          priority: priority,
+          description: description,
+          customer_email: customerEmail
+        })
       })
 
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.detail || `HTTP ${response.status}: ${response.statusText}`)
+        throw new Error(data.message || data.detail || `HTTP ${response.status}: ${response.statusText}`)
       }
 
-      setSuccess(`Event submitted successfully! Event ID: ${data.event_id}`)
-      
-      // Reload events after a short delay
-      setTimeout(() => {
-        loadEvents()
-        setActiveTab('inbox')
-      }, 1000)
+      if (data.triggered) {
+        setSuccess(`Event triggered successfully! ${data.message}${data.event_id ? ` Event ID: ${data.event_id}` : ''}${data.email_sent ? ' Email sent!' : ''}`)
+        
+        // Reload events after a short delay
+        setTimeout(() => {
+          loadEvents()
+          setActiveTab('inbox')
+        }, 1000)
+      } else {
+        setSuccess(`Event not triggered: ${data.reason}`)
+      }
     } catch (err) {
       setError(err.message)
     } finally {
@@ -210,45 +204,41 @@ function App() {
   }
 
   const submitUrgentJiraEvent = async (assessment) => {
-    if (!apiKey) {
-      setError('Please enter your Zapier API key to submit urgent tickets')
-      return
-    }
-
     try {
       setLoading(true)
       setError(null)
 
-      const payload = {
-        event_type: 'jira.ticket.urgent',
-        jira_ticket_text: jiraTicketText,
-        is_urgent: assessment.is_urgent,
-        urgency_reason: assessment.urgency_reason,
-        assessed_at: new Date().toISOString()
-      }
-
-      const response = await fetch(`${API_URL}/api/v1/events`, {
+      // Call demo backend /demo/trigger endpoint with Jira ticket data
+      const response = await fetch(`${DEMO_API_URL}/demo/trigger`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ payload })
+        body: JSON.stringify({
+          document_type: 'jira_ticket',
+          priority: 'high', // Urgent tickets are always high priority
+          description: jiraTicketText,
+          customer_email: 'jira@example.com' // Default email for Jira tickets
+        })
       })
 
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.detail || `HTTP ${response.status}: ${response.statusText}`)
+        throw new Error(data.message || data.detail || `HTTP ${response.status}: ${response.statusText}`)
       }
 
-      setSuccess(`Urgent ticket submitted successfully! Event ID: ${data.event_id}. Email notification will be sent.`)
-      
-      // Reload events after a short delay
-      setTimeout(() => {
-        loadEvents()
-        setActiveTab('inbox')
-      }, 2000)
+      if (data.triggered) {
+        setSuccess(`Urgent ticket submitted successfully! ${data.message}${data.event_id ? ` Event ID: ${data.event_id}` : ''}${data.email_sent ? ' Email notification sent!' : ''}`)
+        
+        // Reload events after a short delay
+        setTimeout(() => {
+          loadEvents()
+          setActiveTab('inbox')
+        }, 2000)
+      } else {
+        setError(`Failed to trigger event: ${data.reason}`)
+      }
     } catch (err) {
       setError(`Failed to submit urgent ticket: ${err.message}`)
     } finally {
@@ -322,16 +312,9 @@ function App() {
               </button>
             )}
           </div>
-          {!apiKey && (
-            <p className="mt-3 text-sm text-zapier-gray-500">
-              Don't have an API key? Create one via the API or use a test key.
-            </p>
-          )}
-          {apiKey && (
-            <p className="mt-2 text-xs text-zapier-gray-500">
-              API Key: <span className="font-mono">{showApiKey ? apiKey : `${apiKey.substring(0, 8)}...${apiKey.substring(apiKey.length - 4)}`}</span>
-            </p>
-          )}
+          <p className="mt-3 text-sm text-zapier-gray-500">
+            API key is managed by the demo backend. The frontend communicates only with the demo backend, which handles all Triggers API integration.
+          </p>
         </div>
 
         {/* Error/Success Messages - Zapier Style */}
@@ -392,35 +375,86 @@ function App() {
           <div className="p-6">
             {activeTab === 'compose' && (
               <div>
-                <label className="block text-sm font-medium text-zapier-gray-900 mb-2">
-                  Event Payload (JSON)
-                </label>
-                <textarea
-                  value={eventPayload}
-                  onChange={(e) => setEventPayload(e.target.value)}
-                  rows={15}
-                  className="w-full px-4 py-3 border border-zapier-gray-300 rounded-md font-mono text-sm focus:outline-none focus:ring-2 focus:ring-zapier-orange focus:border-transparent text-zapier-gray-900 bg-white"
-                  placeholder='{"event_type": "order.created", ...}'
-                />
-                <div className="mt-4 flex gap-3">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-zapier-gray-900 mb-2">
+                      Document Type
+                    </label>
+                    <input
+                      type="text"
+                      value={documentType}
+                      onChange={(e) => setDocumentType(e.target.value)}
+                      placeholder="support_ticket"
+                      className="w-full px-4 py-2.5 border border-zapier-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-zapier-orange focus:border-transparent text-zapier-gray-900"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-zapier-gray-900 mb-2">
+                      Priority
+                    </label>
+                    <select
+                      value={priority}
+                      onChange={(e) => setPriority(e.target.value)}
+                      className="w-full px-4 py-2.5 border border-zapier-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-zapier-orange focus:border-transparent text-zapier-gray-900"
+                    >
+                      <option value="low">Low</option>
+                      <option value="normal">Normal</option>
+                      <option value="high">High</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-zapier-gray-900 mb-2">
+                      Description
+                    </label>
+                    <textarea
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      rows={6}
+                      placeholder="Customer is very angry about order..."
+                      className="w-full px-4 py-3 border border-zapier-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-zapier-orange focus:border-transparent text-zapier-gray-900 bg-white"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-zapier-gray-900 mb-2">
+                      Customer Email
+                    </label>
+                    <input
+                      type="email"
+                      value={customerEmail}
+                      onChange={(e) => setCustomerEmail(e.target.value)}
+                      placeholder="customer@example.com"
+                      className="w-full px-4 py-2.5 border border-zapier-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-zapier-orange focus:border-transparent text-zapier-gray-900"
+                    />
+                  </div>
+                </div>
+                
+                <div className="mt-6 flex gap-3">
                   <button
                     onClick={submitEvent}
-                    disabled={loading || !apiKey}
+                    disabled={loading}
                     className="px-6 py-2.5 bg-zapier-orange text-white rounded-md hover:bg-zapier-orange-dark disabled:bg-zapier-gray-300 disabled:cursor-not-allowed font-medium text-sm transition-colors shadow-sm"
                   >
-                    {loading ? 'Submitting...' : 'Submit Event'}
+                    {loading ? 'Submitting...' : 'Trigger Demo Workflow'}
                   </button>
                   <button
-                    onClick={() => setEventPayload(JSON.stringify({
-                      event_type: 'order.created',
-                      order_id: '12345',
-                      amount: 99.99
-                    }, null, 2))}
+                    onClick={() => {
+                      setDocumentType('support_ticket')
+                      setPriority('high')
+                      setDescription('Customer is very angry about order')
+                      setCustomerEmail('customer@example.com')
+                    }}
                     className="px-6 py-2.5 bg-white border border-zapier-gray-300 text-zapier-gray-700 rounded-md hover:bg-zapier-gray-50 font-medium text-sm transition-colors"
                   >
-                    Reset Template
+                    Reset Form
                   </button>
                 </div>
+                
+                <p className="mt-4 text-xs text-zapier-gray-500">
+                  The demo backend will run agent logic to decide if the event should be triggered, then call the production Triggers API and send a demo email.
+                </p>
               </div>
             )}
 
@@ -507,18 +541,14 @@ function App() {
                   </h2>
                   <button
                     onClick={loadEvents}
-                    disabled={loading || !apiKey}
+                    disabled={loading}
                     className="px-4 py-2 bg-white border border-zapier-gray-300 text-zapier-gray-700 rounded-md hover:bg-zapier-gray-50 disabled:bg-zapier-gray-100 disabled:cursor-not-allowed text-sm font-medium transition-colors"
                   >
                     {loading ? 'Loading...' : 'Refresh'}
                   </button>
                 </div>
 
-                {!apiKey ? (
-                  <div className="text-center py-12 text-zapier-gray-500">
-                    <p className="text-sm">Please enter your API key to view events</p>
-                  </div>
-                ) : loading ? (
+                {loading ? (
                   <div className="text-center py-12 text-zapier-gray-500">
                     <p className="text-sm">Loading events...</p>
                   </div>
@@ -574,19 +604,19 @@ function App() {
           <h2 className="text-base font-semibold text-zapier-gray-900 mb-4">API Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
-              <div className="text-zapier-gray-600 mb-1 font-medium">API URL</div>
-              <div className="font-mono text-zapier-gray-900 text-xs break-all">{API_URL}</div>
+              <div className="text-zapier-gray-600 mb-1 font-medium">Demo Backend URL</div>
+              <div className="font-mono text-zapier-gray-900 text-xs break-all">{DEMO_API_URL}</div>
             </div>
             <div>
               <div className="text-zapier-gray-600 mb-1 font-medium">Health Check</div>
               <div className="mt-1">
                 <a
-                  href={`${API_URL}/health`}
+                  href={`${DEMO_API_URL}/health`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-zapier-orange hover:text-zapier-orange-dark text-xs font-medium"
                 >
-                  {API_URL}/health
+                  {DEMO_API_URL}/health
                 </a>
               </div>
             </div>
