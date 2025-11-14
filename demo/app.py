@@ -173,6 +173,44 @@ def submit_event_to_triggers_api(payload: dict) -> dict:
         )
 
 
+def get_inbox_events() -> dict:
+    """
+    Fetch all events from Triggers API inbox.
+
+    Returns:
+        Response dict with events list
+
+    Raises:
+        HTTPException: If API call fails
+    """
+    if not TRIGGERS_API_URL or not TRIGGERS_API_KEY:
+        raise ValueError("TRIGGERS_API_URL and TRIGGERS_API_KEY must be set")
+
+    headers = {"Authorization": f"Bearer {TRIGGERS_API_KEY}"}
+    url = f"{TRIGGERS_API_URL}/api/v1/inbox"
+
+    logger.info(f"Fetching inbox events from Triggers API: {url}")
+
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        logger.info(f"Retrieved {len(data.get('events', []))} events from inbox")
+        return data
+    except requests.exceptions.Timeout:
+        logger.error("Triggers API request timed out")
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="Triggers API request timed out",
+        )
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Triggers API request failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to fetch inbox events: {str(e)}",
+        )
+
+
 def get_event_status(event_id: str) -> dict:
     """
     Fetch event status from Triggers API inbox.
@@ -383,6 +421,33 @@ async def trigger_demo_workflow(request: TriggerRequest):
         recipient_email=DEMO_RECIPIENT_EMAIL if email_sent else None,
         message=message,
     )
+
+
+@app.get("/demo/inbox")
+async def get_inbox_endpoint():
+    """
+    Get all events from the Triggers API inbox.
+    
+    This endpoint proxies requests to the production Triggers API,
+    demonstrating how a backend service should integrate with the API.
+
+    Returns:
+        Inbox response with list of events
+    """
+    logger.info("Fetching inbox events via demo backend")
+
+    try:
+        inbox_data = get_inbox_events()
+        return inbox_data
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get inbox events: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get inbox events: {str(e)}",
+        )
 
 
 @app.get("/demo/status/{event_id}", response_model=EventStatusResponse)
