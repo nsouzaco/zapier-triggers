@@ -5,9 +5,17 @@
 
 set -euo pipefail
 
-# Default values
-API_URL="${1:-https://your-api-gateway-url.execute-api.us-east-1.amazonaws.com/Prod}"
-API_KEY="${2:-your-api-key-here}"
+# Default values - use environment variables or command line arguments
+API_URL="${1:-${TRIGGERS_API_URL:-https://your-api-gateway-url.execute-api.us-east-1.amazonaws.com/Prod}}"
+API_KEY="${2:-${TRIGGERS_API_KEY:-}}"
+
+# Validate API key is provided
+if [ -z "$API_KEY" ]; then
+    echo "❌ Error: API key is required"
+    echo "   Set TRIGGERS_API_KEY environment variable or pass as second argument"
+    echo "   Usage: ./scripts/quick-test.sh [API_URL] [API_KEY]"
+    exit 1
+fi
 
 echo "🧪 Quick Test - Zapier Triggers API"
 echo "API URL: ${API_URL}"
@@ -110,8 +118,8 @@ echo "  1. Check CloudWatch logs: aws logs tail /aws/lambda/zapier-triggers-api 
 echo "  2. Verify events in DynamoDB (AWS Console)"
 echo "  3. Check API Gateway metrics (AWS Console)"
 echo ""
-echo "🔑 Working API Keys:"
-echo "  - ${API_KEY:0:20}..."
-echo "  - your-api-key-here"
+echo "🔑 API Key used: ${API_KEY:0:20}..."
+echo ""
+echo "💡 Tip: Set TRIGGERS_API_KEY environment variable to avoid passing it each time"
 echo ""
 

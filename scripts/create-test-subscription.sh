@@ -3,8 +3,8 @@
 
 set -e
 
-# Get API URL from argument or use default
-API_URL="${1:-https://your-api-gateway-url.execute-api.us-east-1.amazonaws.com/Prod}"
+# Get API URL from argument or use environment variable
+API_URL="${1:-${TRIGGERS_API_URL:-https://your-api-gateway-url.execute-api.us-east-1.amazonaws.com/Prod}}"
 CUSTOMER_ID="${2:-4d25b335-5197-408e-a8cd-5101d4dd6f6c}"
 EVENT_TYPE="${3:-order.created}"
 WEBHOOK_URL="${4:-https://webhook.site/unique-url}"

@@ -25,9 +25,11 @@ terraform output api_gateway_url
 
 ```bash
 # List API keys that exist in RDS (from Lambda logs or CloudShell)
-# Known working keys from Lambda:
-# - your-api-key-here
-# - your-api-key-here
+# Get your API key from:
+# 1. AWS RDS database (customers table)
+# 2. CloudWatch logs
+# 3. Your .env file (TRIGGERS_API_KEY)
+# Example format: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 #### Step 3: Test the API
@@ -112,8 +114,8 @@ cd frontend
 npm run dev
 
 # Open browser to http://localhost:5173
-# Enter API key: your-api-key-here
-# Enter API URL: https://your-api-gateway-url.execute-api.us-east-1.amazonaws.com/Prod
+# Enter API key: (get from your .env file or RDS)
+# Enter API URL: (get from Terraform output or AWS Console)
 # Test submitting events via the UI
 ```
 
@@ -144,6 +146,7 @@ curl -X POST "${API_URL}/api/v1/events" \
 ### Test Health Endpoint
 
 ```bash
+# Replace with your actual API Gateway URL
 curl https://your-api-gateway-url.execute-api.us-east-1.amazonaws.com/Prod/health
 ```
 
@@ -225,7 +228,7 @@ Use the provided test script:
 # Make it executable
 chmod +x scripts/test-api.sh
 
-# Run tests
+# Run tests (replace with your API Gateway URL)
 ./scripts/test-api.sh https://your-api-gateway-url.execute-api.us-east-1.amazonaws.com/Prod
 ```
 
@@ -237,9 +240,10 @@ chmod +x scripts/test-api.sh
 
 2. **Use Lambda**: The best way to test is via the deployed Lambda API, which has VPC access to RDS.
 
-3. **API Keys**: Use the API keys that Lambda can see:
-   - `your-api-key-here`
-   - `your-api-key-here`
+3. **API Keys**: Get your API keys from:
+   - RDS database (customers table)
+   - Environment variables (TRIGGERS_API_KEY)
+   - CloudWatch logs
 
 4. **Configuration**: Your local config is correct - it will use RDS when accessible (from Lambda).
 

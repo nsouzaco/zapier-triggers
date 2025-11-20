@@ -77,7 +77,7 @@ class Settings(BaseSettings):
 
     # Email Service (Resend)
     resend_api_key: Optional[str] = None
-    urgent_jira_email_recipient: str = "notifications@example.com"
+    urgent_jira_email_recipient: str = "notifications@example.com"  # Override via URGENT_JIRA_EMAIL_RECIPIENT env var
 
     @property
     def is_development(self) -> bool:

@@ -74,3 +74,33 @@ lambda-layer/
 dependencies-layer.zip
 function.zip
 
+# Secrets and sensitive configuration
+terraform/terraform.tfvars
+terraform/*.tfvars
+!terraform/*.tfvars.example
+*.tfvars
+!*.tfvars.example
+
+# Local script overrides with secrets
+scripts/quick-test.local.sh
+scripts/*.local.sh
+
+# Local configuration overrides
+config.local.py
+*.local.py
+*.secrets.*
+
+# AWS credentials
+.aws/credentials
+.aws/config
+*.pem
+*.key
+
+# Database credentials
+database.local.yml
+*.db.local
+
+# Email and personal info files
+*email*.txt
+*personal*.txt
+
