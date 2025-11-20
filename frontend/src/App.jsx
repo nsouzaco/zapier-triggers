@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import OpenAI from 'openai'
 import './App.css'
 
 // Demo Backend URL (Railway deployment) - can be overridden via environment variable
@@ -20,18 +19,7 @@ function App() {
   
   // Jira Ticket Analysis state
   const [jiraTicketText, setJiraTicketText] = useState('')
-  const [openaiApiKey, setOpenaiApiKey] = useState(() => {
-    return localStorage.getItem('openai_api_key') || ''
-  })
-  const [urgencyAssessment, setUrgencyAssessment] = useState(null)
   const [assessingUrgency, setAssessingUrgency] = useState(false)
-
-  // Save OpenAI API key to localStorage
-  useEffect(() => {
-    if (openaiApiKey) {
-      localStorage.setItem('openai_api_key', openaiApiKey)
-    }
-  }, [openaiApiKey])
 
   // Load events on mount
   useEffect(() => {
@@ -188,68 +176,32 @@ function App() {
       return
     }
 
-    if (!openaiApiKey) {
-      setError('Please enter your OpenAI API key')
-      return
-    }
-
     try {
       setAssessingUrgency(true)
       setError(null)
       setSuccess(null)
-      setUrgencyAssessment(null)
 
-      const openai = new OpenAI({
-        apiKey: openaiApiKey,
-        dangerouslyAllowBrowser: true // Required for client-side usage
-      })
-
-      const response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an expert at assessing the urgency of Jira tickets. Analyze the ticket text and determine if it is urgent. Urgent tickets typically involve: production outages, critical bugs affecting users, security vulnerabilities, data loss, or time-sensitive business-critical issues. Respond with a JSON object containing: {"is_urgent": true/false, "urgency_reason": "brief explanation"}'
-          },
-          {
-            role: 'user',
-            content: `Assess the urgency of this Jira ticket:\n\n${jiraTicketText}`
-          }
-        ],
-        response_format: { type: 'json_object' },
-        temperature: 0.3
-      })
-
-      const assessment = JSON.parse(response.choices[0].message.content)
-      setUrgencyAssessment(assessment)
-
-      // If urgent, automatically trigger the API
-      if (assessment.is_urgent) {
-        setSuccess('Urgent ticket detected! Submitting to trigger API...')
-        
-        // Wait a moment to show the success message
-        await new Promise(resolve => setTimeout(resolve, 500))
-        
-        // Submit to trigger API
-        await submitUrgentJiraEvent(assessment)
-      } else {
-        setSuccess('Ticket assessed as not urgent. No action taken.')
-      }
+      // Use demo backend to assess urgency and trigger if needed
+      // The backend's agent logic will determine if it's urgent based on keywords
+      setSuccess('Analyzing ticket urgency and submitting if urgent...')
+      
+      // Submit to demo backend - it will use agent logic to decide
+      await submitUrgentJiraEvent()
     } catch (err) {
       console.error('Error assessing urgency:', err)
-      setError(`Failed to assess urgency: ${err.message}`)
-      setUrgencyAssessment(null)
+      setError(`Failed to process ticket: ${err.message}`)
     } finally {
       setAssessingUrgency(false)
     }
   }
 
-  const submitUrgentJiraEvent = async (assessment) => {
+  const submitUrgentJiraEvent = async () => {
     try {
       setLoading(true)
       setError(null)
 
       // Call demo backend /demo/trigger endpoint with Jira ticket data
+      // The backend's agent logic will analyze the description for urgent keywords
       const response = await fetch(`${DEMO_API_URL}/demo/trigger`, {
         method: 'POST',
         headers: {
@@ -257,7 +209,7 @@ function App() {
         },
         body: JSON.stringify({
           document_type: 'jira_ticket',
-          priority: 'high', // Urgent tickets are always high priority
+          priority: 'normal', // Let agent logic determine urgency from description
           description: jiraTicketText,
           customer_email: 'jira@example.com' // Default email for Jira tickets
         })
@@ -296,7 +248,7 @@ function App() {
       const data = await response.json()
 
       if (data.triggered) {
-        setSuccess(`Urgent ticket submitted successfully! ${data.message}${data.event_id ? ` Event ID: ${data.event_id}` : ''}${data.email_sent ? ' Email notification sent!' : ''}`)
+        setSuccess(`Ticket submitted successfully! ${data.message}${data.event_id ? ` Event ID: ${data.event_id}` : ''}${data.email_sent ? ' Email notification sent!' : ''}`)
         
         // Reload events after a short delay
         setTimeout(() => {
@@ -304,7 +256,7 @@ function App() {
           setActiveTab('inbox')
         }, 2000)
       } else {
-        setError(`Failed to trigger event: ${data.reason}`)
+        setSuccess(`Ticket analyzed: ${data.reason}. No action taken.`)
       }
     } catch (err) {
       setError(`Failed to submit urgent ticket: ${err.message}`)
@@ -487,22 +439,6 @@ function App() {
               <div>
                 <div className="mb-6">
                   <label className="block text-sm font-medium text-zapier-gray-900 mb-2">
-                    OpenAI API Key
-                  </label>
-                  <input
-                    type="password"
-                    value={openaiApiKey}
-                    onChange={(e) => setOpenaiApiKey(e.target.value)}
-                    placeholder="Enter your OpenAI API key"
-                    className="w-full px-4 py-2.5 border border-zapier-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-zapier-orange focus:border-transparent text-zapier-gray-900 placeholder-zapier-gray-400 font-mono"
-                  />
-                  <p className="mt-2 text-xs text-zapier-gray-500">
-                    Your OpenAI API key is stored locally and used to assess ticket urgency.
-                  </p>
-                </div>
-
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-zapier-gray-900 mb-2">
                     Jira Ticket Text
                   </label>
                   <textarea
@@ -517,44 +453,15 @@ function App() {
                 <div className="mb-6">
                   <button
                     onClick={assessUrgency}
-                    disabled={assessingUrgency || !jiraTicketText.trim() || !openaiApiKey}
+                    disabled={assessingUrgency || !jiraTicketText.trim()}
                     className="px-6 py-2.5 bg-zapier-orange text-white rounded-md hover:bg-zapier-orange-dark disabled:bg-zapier-gray-300 disabled:cursor-not-allowed font-medium text-sm transition-colors shadow-sm"
                   >
-                    {assessingUrgency ? 'Assessing Urgency...' : 'Assess Urgency'}
+                    {assessingUrgency ? 'Processing Ticket...' : 'Analyze & Submit Ticket'}
                   </button>
+                  <p className="mt-2 text-xs text-zapier-gray-500">
+                    The system will analyze the ticket for urgent keywords and automatically submit if urgent.
+                  </p>
                 </div>
-
-                {urgencyAssessment && (
-                  <div className={`mb-6 p-4 rounded-md border ${
-                    urgencyAssessment.is_urgent
-                      ? 'bg-red-50 border-red-200'
-                      : 'bg-green-50 border-green-200'
-                  }`}>
-                    <div className="flex items-start">
-                      <div className="flex-1">
-                        <div className={`text-sm font-semibold mb-2 ${
-                          urgencyAssessment.is_urgent
-                            ? 'text-red-900'
-                            : 'text-green-900'
-                        }`}>
-                          {urgencyAssessment.is_urgent ? '⚠️ URGENT' : '✓ Not Urgent'}
-                        </div>
-                        <div className={`text-sm ${
-                          urgencyAssessment.is_urgent
-                            ? 'text-red-800'
-                            : 'text-green-800'
-                        }`}>
-                          {urgencyAssessment.urgency_reason}
-                        </div>
-                        {urgencyAssessment.is_urgent && (
-                          <div className="mt-3 text-xs text-red-700">
-                            This ticket will be automatically submitted to the trigger API and an email notification will be sent.
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
 
