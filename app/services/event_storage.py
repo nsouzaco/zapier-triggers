@@ -349,6 +349,123 @@ class EventStorageService:
             logger.error(f"Error deleting event from DynamoDB: {e}", exc_info=True)
             return False
 
+    async def query_all_events(
+        self,
+        event_type: Optional[str] = None,
+        status: Optional[str] = None,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        limit: int = 100,
+    ) -> list[dict]:
+        """
+        Query events across all customers (for operator dashboard).
+        Uses DynamoDB scan operation.
+
+        Args:
+            event_type: Optional filter by event type
+            status: Optional filter by status
+            start_time: Optional start timestamp
+            end_time: Optional end timestamp
+            limit: Maximum number of events to return
+
+        Returns:
+            List of events matching the criteria
+        """
+        if not self.table:
+            return []
+
+        try:
+            # Use scan to get all events (expensive but necessary for operator view)
+            scan_params: dict = {
+                "Limit": limit * 2,  # Scan more items to account for filtering
+            }
+
+            # Add filters
+            filter_expressions = []
+            expression_attribute_values: dict = {}
+
+            if status:
+                filter_expressions.append("status = :status")
+                expression_attribute_values[":status"] = status
+
+            if start_time:
+                filter_expressions.append("timestamp >= :start_time")
+                expression_attribute_values[":start_time"] = start_time.isoformat()
+
+            if end_time:
+                filter_expressions.append("timestamp <= :end_time")
+                expression_attribute_values[":end_time"] = end_time.isoformat()
+
+            if filter_expressions:
+                scan_params["FilterExpression"] = " AND ".join(filter_expressions)
+                scan_params["ExpressionAttributeValues"] = expression_attribute_values
+
+            response = self.table.scan(**scan_params)
+            
+            # Handle pagination
+            all_items = response.get("Items", [])
+            while "LastEvaluatedKey" in response and len(all_items) < limit * 2:
+                scan_params["ExclusiveStartKey"] = response["LastEvaluatedKey"]
+                response = self.table.scan(**scan_params)
+                all_items.extend(response.get("Items", []))
+
+            events = []
+            for item in all_items:
+                # Parse JSON payload if stored as string
+                if isinstance(item.get("payload"), str):
+                    item["payload"] = json.loads(item["payload"])
+
+                # Apply client-side filters (event_type)
+                if event_type:
+                    payload = item.get("payload", {})
+                    if isinstance(payload, str):
+                        payload = json.loads(payload)
+                    if payload.get("event_type") != event_type:
+                        continue
+
+                events.append(item)
+
+            # Sort by timestamp descending (most recent first)
+            events.sort(
+                key=lambda x: datetime.fromisoformat(x.get("timestamp", x.get("created_at", "1970-01-01T00:00:00"))),
+                reverse=True
+            )
+
+            return events[:limit]
+
+        except Exception as e:
+            logger.error(f"Error scanning events from DynamoDB: {e}")
+            return []
+
+    async def count_all_events(self) -> int:
+        """
+        Count all events across all customers (approximate).
+        Uses DynamoDB scan with Select=COUNT.
+
+        Returns:
+            Approximate count of all events
+        """
+        if not self.table:
+            return 0
+
+        try:
+            # Use scan with Select=COUNT for efficiency
+            response = self.table.scan(Select="COUNT")
+            count = response.get("Count", 0)
+            
+            # Handle pagination
+            while "LastEvaluatedKey" in response:
+                response = self.table.scan(
+                    Select="COUNT",
+                    ExclusiveStartKey=response["LastEvaluatedKey"]
+                )
+                count += response.get("Count", 0)
+            
+            return count
+        except Exception as e:
+            logger.error(f"Error counting events from DynamoDB: {e}")
+            return 0
+
 
 # Global event storage service instance
 event_storage = EventStorageService()

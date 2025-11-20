@@ -163,6 +163,10 @@ if settings.is_development:
 app.include_router(events.router, prefix="/api/v1")
 app.include_router(inbox.router, prefix="/api/v1")
 
+# Include operator endpoints (no auth required)
+from app.api import operators
+app.include_router(operators.router)
+
 
 if __name__ == "__main__":
     import uvicorn

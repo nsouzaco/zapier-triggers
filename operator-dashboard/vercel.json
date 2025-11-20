@@ -1,0 +1,12 @@
+{
+  "buildCommand": "cd operator-dashboard && npm install && npm run build",
+  "outputDirectory": "operator-dashboard/dist",
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/operator/(.*)",
+      "destination": "/operator/index.html"
+    }
+  ]
+}
+

@@ -239,6 +239,31 @@ class SubscriptionService:
         finally:
             session.close()
 
+    async def get_all_subscriptions(self) -> List[Subscription]:
+        """
+        Get all subscriptions across all customers (for operator dashboard).
+
+        Returns:
+            List of all subscriptions
+        """
+        if not self.SessionLocal:
+            return []
+
+        session = self.get_session()
+        if not session:
+            return []
+
+        try:
+            stmt = select(Subscription)
+            result = session.execute(stmt)
+            subscriptions = result.scalars().all()
+            return list(subscriptions)
+        except Exception as e:
+            logger.error(f"Error retrieving all subscriptions: {e}")
+            return []
+        finally:
+            session.close()
+
 
 # Global subscription service instance
 subscription_service = SubscriptionService()
