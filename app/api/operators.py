@@ -101,6 +101,7 @@ async def get_all_events(
     end_time: Optional[datetime] = Query(None),
 ):
     """Get all events across all customers."""
+    logger.info(f"Operator events request: status={status}, event_type={event_type}, limit={limit}, start_time={start_time}, end_time={end_time}")
     try:
         # Query all events (no customer filter)
         events = await event_storage.query_all_events(
@@ -110,6 +111,8 @@ async def get_all_events(
             end_time=end_time,
             limit=limit,
         )
+        
+        logger.info(f"query_all_events returned {len(events)} events")
         
         # Convert to response format
         event_summaries = []
@@ -129,6 +132,7 @@ async def get_all_events(
                 )
             )
         
+        logger.info(f"Returning {len(event_summaries)} event summaries to operator dashboard")
         return EventsResponse(
             events=event_summaries,
             total=len(event_summaries),

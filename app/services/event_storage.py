@@ -371,10 +371,16 @@ class EventStorageService:
         Returns:
             List of events matching the criteria
         """
+        logger.info(f"query_all_events called: limit={limit}, status={status}, event_type={event_type}, start_time={start_time}, end_time={end_time}")
+        
         if not self.table:
+            logger.warning("DynamoDB table not initialized - cannot query events")
             return []
 
         try:
+            table_name = settings.dynamodb_table
+            logger.info(f"Scanning DynamoDB table: {table_name}")
+            
             # Use scan to get all events (expensive but necessary for operator view)
             scan_params: dict = {
                 "Limit": limit * 2,  # Scan more items to account for filtering
@@ -400,15 +406,24 @@ class EventStorageService:
                 scan_params["FilterExpression"] = " AND ".join(filter_expressions)
                 scan_params["ExpressionAttributeValues"] = expression_attribute_values
 
+            logger.info(f"Executing DynamoDB scan with params: Limit={scan_params.get('Limit')}, FilterExpression={scan_params.get('FilterExpression')}")
             response = self.table.scan(**scan_params)
+            
+            count = response.get("Count", 0)
+            scanned_count = response.get("ScannedCount", 0)
+            items_returned = len(response.get("Items", []))
+            logger.info(f"DynamoDB scan response: Count={count}, ScannedCount={scanned_count}, Items returned={items_returned}")
             
             # Handle pagination
             all_items = response.get("Items", [])
             while "LastEvaluatedKey" in response and len(all_items) < limit * 2:
+                logger.info(f"Pagination: continuing scan, current items: {len(all_items)}")
                 scan_params["ExclusiveStartKey"] = response["LastEvaluatedKey"]
                 response = self.table.scan(**scan_params)
                 all_items.extend(response.get("Items", []))
+                logger.info(f"Pagination: total items after scan: {len(all_items)}")
 
+            logger.info(f"Processing {len(all_items)} items from DynamoDB")
             events = []
             for item in all_items:
                 # Parse JSON payload if stored as string
@@ -431,10 +446,11 @@ class EventStorageService:
                 reverse=True
             )
 
+            logger.info(f"Returning {len(events[:limit])} events after filtering and sorting (limit={limit})")
             return events[:limit]
 
         except Exception as e:
-            logger.error(f"Error scanning events from DynamoDB: {e}")
+            logger.error(f"Error scanning events from DynamoDB: {e}", exc_info=True)
             return []
 
     async def count_all_events(self) -> int:
