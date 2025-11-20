@@ -4,7 +4,7 @@ import './App.css'
 
 // Demo Backend URL (Railway deployment) - can be overridden via environment variable
 // The demo backend handles all communication with the production Triggers API
-const DEMO_API_URL = import.meta.env.VITE_DEMO_API_URL || 'https://your-demo-backend.up.railway.app'
+const DEMO_API_URL = import.meta.env.VITE_DEMO_API_URL || 'https://zapier-triggers-production.up.railway.app'
 
 function App() {
   const [apiKey, setApiKey] = useState(() => {
