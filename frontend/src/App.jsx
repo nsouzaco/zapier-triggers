@@ -49,29 +49,34 @@ function App() {
         }
       })
 
-      // Check if response is actually JSON
-      const contentType = response.headers.get('content-type')
-      if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text()
-        console.error('Non-JSON response received:', text.substring(0, 200))
-        throw new Error(`Server returned ${contentType || 'unknown content type'} instead of JSON. Status: ${response.status}`)
-      }
+      // Check content type before parsing
+      const contentType = response.headers.get('content-type') || ''
+      const isJson = contentType.includes('application/json')
 
       if (!response.ok) {
-        // Check if error response is JSON
-        const contentType = response.headers.get('content-type')
-        let errorData = { detail: response.statusText }
-        if (contentType && contentType.includes('application/json')) {
+        // Handle error response
+        let errorMessage = response.statusText
+        if (isJson) {
           try {
-            errorData = await response.json()
+            const errorData = await response.json()
+            errorMessage = errorData.detail || errorData.message || errorMessage
           } catch {
-            // If JSON parsing fails, use default
+            // JSON parse failed, use status text
           }
         } else {
+          // Non-JSON error response (likely HTML error page)
           const text = await response.text()
-          console.error('Error response (non-JSON):', text.substring(0, 200))
+          console.error('Non-JSON error response:', text.substring(0, 200))
+          errorMessage = `Server error (${response.status}): ${response.statusText}`
         }
-        throw new Error(`Failed to load events: ${errorData.detail || response.statusText} (${response.status})`)
+        throw new Error(`Failed to load events: ${errorMessage} (${response.status})`)
+      }
+
+      // Success response - parse JSON
+      if (!isJson) {
+        const text = await response.text()
+        console.error('Non-JSON response received:', text.substring(0, 200))
+        throw new Error(`Server returned ${contentType || 'unknown content type'} instead of JSON`)
       }
 
       const data = await response.json()
@@ -118,19 +123,37 @@ function App() {
         })
       })
 
-      // Check if response is actually JSON
-      const contentType = response.headers.get('content-type')
-      if (!contentType || !contentType.includes('application/json')) {
+      // Check content type before parsing
+      const contentType = response.headers.get('content-type') || ''
+      const isJson = contentType.includes('application/json')
+
+      if (!response.ok) {
+        // Handle error response
+        let errorMessage = response.statusText
+        if (isJson) {
+          try {
+            const errorData = await response.json()
+            errorMessage = errorData.message || errorData.detail || errorMessage
+          } catch {
+            // JSON parse failed, use status text
+          }
+        } else {
+          // Non-JSON error response
+          const text = await response.text()
+          console.error('Non-JSON error response:', text.substring(0, 200))
+          errorMessage = `Server error (${response.status}): ${response.statusText}`
+        }
+        throw new Error(errorMessage)
+      }
+
+      // Success response - parse JSON
+      if (!isJson) {
         const text = await response.text()
         console.error('Non-JSON response received:', text.substring(0, 200))
-        throw new Error(`Server returned ${contentType || 'unknown content type'} instead of JSON. Status: ${response.status}`)
+        throw new Error(`Server returned ${contentType || 'unknown content type'} instead of JSON`)
       }
 
       const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.message || data.detail || `HTTP ${response.status}: ${response.statusText}`)
-      }
 
       if (data.triggered) {
         setSuccess(`Event triggered successfully! ${data.message}${data.event_id ? ` Event ID: ${data.event_id}` : ''}${data.email_sent ? ' Email sent!' : ''}`)
@@ -240,19 +263,37 @@ function App() {
         })
       })
 
-      // Check if response is actually JSON
-      const contentType = response.headers.get('content-type')
-      if (!contentType || !contentType.includes('application/json')) {
+      // Check content type before parsing
+      const contentType = response.headers.get('content-type') || ''
+      const isJson = contentType.includes('application/json')
+
+      if (!response.ok) {
+        // Handle error response
+        let errorMessage = response.statusText
+        if (isJson) {
+          try {
+            const errorData = await response.json()
+            errorMessage = errorData.message || errorData.detail || errorMessage
+          } catch {
+            // JSON parse failed, use status text
+          }
+        } else {
+          // Non-JSON error response
+          const text = await response.text()
+          console.error('Non-JSON error response:', text.substring(0, 200))
+          errorMessage = `Server error (${response.status}): ${response.statusText}`
+        }
+        throw new Error(errorMessage)
+      }
+
+      // Success response - parse JSON
+      if (!isJson) {
         const text = await response.text()
         console.error('Non-JSON response received:', text.substring(0, 200))
-        throw new Error(`Server returned ${contentType || 'unknown content type'} instead of JSON. Status: ${response.status}`)
+        throw new Error(`Server returned ${contentType || 'unknown content type'} instead of JSON`)
       }
 
       const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.message || data.detail || `HTTP ${response.status}: ${response.statusText}`)
-      }
 
       if (data.triggered) {
         setSuccess(`Urgent ticket submitted successfully! ${data.message}${data.event_id ? ` Event ID: ${data.event_id}` : ''}${data.email_sent ? ' Email notification sent!' : ''}`)
