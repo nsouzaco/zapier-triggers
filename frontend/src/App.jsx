@@ -7,9 +7,6 @@ import './App.css'
 const DEMO_API_URL = import.meta.env.VITE_DEMO_API_URL || 'https://zapier-triggers-production.up.railway.app'
 
 function App() {
-  const [apiKey, setApiKey] = useState(() => {
-    return localStorage.getItem('zapier_api_key') || ''
-  })
   // Demo backend form fields
   const [documentType, setDocumentType] = useState('support_ticket')
   const [priority, setPriority] = useState('high')
@@ -20,7 +17,6 @@ function App() {
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
   const [activeTab, setActiveTab] = useState('compose')
-  const [showApiKey, setShowApiKey] = useState(false)
   
   // Jira Ticket Analysis state
   const [jiraTicketText, setJiraTicketText] = useState('')
@@ -30,13 +26,7 @@ function App() {
   const [urgencyAssessment, setUrgencyAssessment] = useState(null)
   const [assessingUrgency, setAssessingUrgency] = useState(false)
 
-  // Save API keys to localStorage
-  useEffect(() => {
-    if (apiKey) {
-      localStorage.setItem('zapier_api_key', apiKey)
-    }
-  }, [apiKey])
-  
+  // Save OpenAI API key to localStorage
   useEffect(() => {
     if (openaiApiKey) {
       localStorage.setItem('openai_api_key', openaiApiKey)
@@ -59,8 +49,28 @@ function App() {
         }
       })
 
+      // Check if response is actually JSON
+      const contentType = response.headers.get('content-type')
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text()
+        console.error('Non-JSON response received:', text.substring(0, 200))
+        throw new Error(`Server returned ${contentType || 'unknown content type'} instead of JSON. Status: ${response.status}`)
+      }
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: response.statusText }))
+        // Check if error response is JSON
+        const contentType = response.headers.get('content-type')
+        let errorData = { detail: response.statusText }
+        if (contentType && contentType.includes('application/json')) {
+          try {
+            errorData = await response.json()
+          } catch {
+            // If JSON parsing fails, use default
+          }
+        } else {
+          const text = await response.text()
+          console.error('Error response (non-JSON):', text.substring(0, 200))
+        }
         throw new Error(`Failed to load events: ${errorData.detail || response.statusText} (${response.status})`)
       }
 
@@ -107,6 +117,14 @@ function App() {
           customer_email: customerEmail
         })
       })
+
+      // Check if response is actually JSON
+      const contentType = response.headers.get('content-type')
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text()
+        console.error('Non-JSON response received:', text.substring(0, 200))
+        throw new Error(`Server returned ${contentType || 'unknown content type'} instead of JSON. Status: ${response.status}`)
+      }
 
       const data = await response.json()
 
@@ -222,6 +240,14 @@ function App() {
         })
       })
 
+      // Check if response is actually JSON
+      const contentType = response.headers.get('content-type')
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text()
+        console.error('Non-JSON response received:', text.substring(0, 200))
+        throw new Error(`Server returned ${contentType || 'unknown content type'} instead of JSON. Status: ${response.status}`)
+      }
+
       const data = await response.json()
 
       if (!response.ok) {
@@ -274,48 +300,6 @@ function App() {
           </p>
         </div>
 
-        {/* API Key Section - Zapier Style Card */}
-        <div className="bg-white rounded-lg border border-zapier-gray-200 shadow-sm p-6 mb-6">
-          <label className="block text-sm font-medium text-zapier-gray-900 mb-2">
-            API Key
-          </label>
-          <div className="flex gap-3">
-            <div className="flex-1 relative">
-              <input
-                type={showApiKey ? "text" : "password"}
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="Enter your API key"
-                className="w-full px-4 py-2.5 border border-zapier-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-zapier-orange focus:border-transparent text-zapier-gray-900 placeholder-zapier-gray-400 font-mono"
-              />
-              {apiKey && (
-                <button
-                  type="button"
-                  onClick={() => setShowApiKey(!showApiKey)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-zapier-gray-500 hover:text-zapier-gray-700 text-xs px-2 py-1"
-                  title={showApiKey ? "Hide API key" : "Show API key"}
-                >
-                  {showApiKey ? "👁️ Hide" : "👁️ Show"}
-                </button>
-              )}
-            </div>
-            {apiKey && (
-              <button
-                onClick={() => {
-                  setApiKey('')
-                  localStorage.removeItem('zapier_api_key')
-                  setShowApiKey(false)
-                }}
-                className="px-4 py-2.5 bg-zapier-gray-100 text-zapier-gray-700 rounded-md hover:bg-zapier-gray-200 text-sm font-medium transition-colors"
-              >
-                Clear
-              </button>
-            )}
-          </div>
-          <p className="mt-3 text-sm text-zapier-gray-500">
-            API key is managed by the demo backend. The frontend communicates only with the demo backend, which handles all Triggers API integration.
-          </p>
-        </div>
 
         {/* Error/Success Messages - Zapier Style */}
         {error && (
