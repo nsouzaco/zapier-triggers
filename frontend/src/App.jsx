@@ -16,10 +16,6 @@ function App() {
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
   const [activeTab, setActiveTab] = useState('compose')
-  
-  // Jira Ticket Analysis state
-  const [jiraTicketText, setJiraTicketText] = useState('')
-  const [assessingUrgency, setAssessingUrgency] = useState(false)
 
   // Load events on mount
   useEffect(() => {
@@ -170,101 +166,6 @@ function App() {
     }
   }
 
-  const assessUrgency = async () => {
-    if (!jiraTicketText.trim()) {
-      setError('Please paste Jira ticket text')
-      return
-    }
-
-    try {
-      setAssessingUrgency(true)
-      setError(null)
-      setSuccess(null)
-
-      // Use demo backend to assess urgency and trigger if needed
-      // The backend's agent logic will determine if it's urgent based on keywords
-      setSuccess('Analyzing ticket urgency and submitting if urgent...')
-      
-      // Submit to demo backend - it will use agent logic to decide
-      await submitUrgentJiraEvent()
-    } catch (err) {
-      console.error('Error assessing urgency:', err)
-      setError(`Failed to process ticket: ${err.message}`)
-    } finally {
-      setAssessingUrgency(false)
-    }
-  }
-
-  const submitUrgentJiraEvent = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-
-      // Call demo backend /demo/trigger endpoint with Jira ticket data
-      // The backend's agent logic will analyze the description for urgent keywords
-      const response = await fetch(`${DEMO_API_URL}/demo/trigger`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          document_type: 'jira_ticket',
-          priority: 'normal', // Let agent logic determine urgency from description
-          description: jiraTicketText,
-          customer_email: 'jira@example.com' // Default email for Jira tickets
-        })
-      })
-
-      // Check content type before parsing
-      const contentType = response.headers.get('content-type') || ''
-      const isJson = contentType.includes('application/json')
-
-      if (!response.ok) {
-        // Handle error response
-        let errorMessage = response.statusText
-        if (isJson) {
-          try {
-            const errorData = await response.json()
-            errorMessage = errorData.message || errorData.detail || errorMessage
-          } catch {
-            // JSON parse failed, use status text
-          }
-        } else {
-          // Non-JSON error response
-          const text = await response.text()
-          console.error('Non-JSON error response:', text.substring(0, 200))
-          errorMessage = `Server error (${response.status}): ${response.statusText}`
-        }
-        throw new Error(errorMessage)
-      }
-
-      // Success response - parse JSON
-      if (!isJson) {
-        const text = await response.text()
-        console.error('Non-JSON response received:', text.substring(0, 200))
-        throw new Error(`Server returned ${contentType || 'unknown content type'} instead of JSON`)
-      }
-
-      const data = await response.json()
-
-      if (data.triggered) {
-        setSuccess(`Ticket submitted successfully! ${data.message}${data.event_id ? ` Event ID: ${data.event_id}` : ''}${data.email_sent ? ' Email notification sent!' : ''}`)
-        
-        // Reload events after a short delay
-        setTimeout(() => {
-          loadEvents()
-          setActiveTab('inbox')
-        }, 2000)
-      } else {
-        setSuccess(`Ticket analyzed: ${data.reason}. No action taken.`)
-      }
-    } catch (err) {
-      setError(`Failed to submit urgent ticket: ${err.message}`)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   return (
     <div className="min-h-screen bg-zapier-gray-50">
       {/* Top Navigation Bar - Zapier Style */}
@@ -320,16 +221,6 @@ function App() {
                 }`}
               >
                 Compose Event
-              </button>
-              <button
-                onClick={() => setActiveTab('jira')}
-                className={`px-6 py-4 font-medium text-sm transition-colors ${
-                  activeTab === 'jira'
-                    ? 'border-b-2 border-zapier-orange text-zapier-orange'
-                    : 'text-zapier-gray-600 hover:text-zapier-gray-900'
-                }`}
-              >
-                Jira Ticket Analysis
               </button>
               <button
                 onClick={() => setActiveTab('inbox')}
@@ -432,36 +323,6 @@ function App() {
                 <p className="mt-4 text-xs text-zapier-gray-500">
                   The demo backend will run agent logic to decide if the event should be triggered, then call the production Triggers API and send a demo email.
                 </p>
-              </div>
-            )}
-
-            {activeTab === 'jira' && (
-              <div>
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-zapier-gray-900 mb-2">
-                    Jira Ticket Text
-                  </label>
-                  <textarea
-                    value={jiraTicketText}
-                    onChange={(e) => setJiraTicketText(e.target.value)}
-                    rows={12}
-                    className="w-full px-4 py-3 border border-zapier-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-zapier-orange focus:border-transparent text-zapier-gray-900 bg-white"
-                    placeholder="Paste your Jira ticket text here..."
-                  />
-                </div>
-
-                <div className="mb-6">
-                  <button
-                    onClick={assessUrgency}
-                    disabled={assessingUrgency || !jiraTicketText.trim()}
-                    className="px-6 py-2.5 bg-zapier-orange text-white rounded-md hover:bg-zapier-orange-dark disabled:bg-zapier-gray-300 disabled:cursor-not-allowed font-medium text-sm transition-colors shadow-sm"
-                  >
-                    {assessingUrgency ? 'Processing Ticket...' : 'Analyze & Submit Ticket'}
-                  </button>
-                  <p className="mt-2 text-xs text-zapier-gray-500">
-                    The system will analyze the ticket for urgent keywords and automatically submit if urgent.
-                  </p>
-                </div>
               </div>
             )}
 

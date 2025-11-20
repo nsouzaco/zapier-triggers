@@ -102,3 +102,6 @@ echo "  2. Test authenticated endpoints"
 echo "  3. Monitor CloudWatch logs"
 echo "  4. Check Lambda function metrics"
 
+
+
+
