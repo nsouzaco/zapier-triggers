@@ -97,8 +97,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         """Process request with rate limiting."""
-        # Skip rate limiting for health check and docs
-        if request.url.path in ["/health", "/docs", "/openapi.json", "/"]:
+        # Skip rate limiting for health check, docs, and operator endpoints
+        skip_paths = ["/health", "/docs", "/openapi.json", "/"]
+        if request.url.path in skip_paths or request.url.path.startswith("/admin/operators"):
             return await call_next(request)
 
         # Get API key from Authorization header
