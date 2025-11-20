@@ -389,22 +389,28 @@ class EventStorageService:
             # Add filters
             filter_expressions = []
             expression_attribute_values: dict = {}
+            expression_attribute_names: dict = {}
 
             if status:
                 filter_expressions.append("status = :status")
                 expression_attribute_values[":status"] = status
 
             if start_time:
-                filter_expressions.append("timestamp >= :start_time")
+                filter_expressions.append("#timestamp >= :start_time")
                 expression_attribute_values[":start_time"] = start_time.isoformat()
+                expression_attribute_names["#timestamp"] = "timestamp"
 
             if end_time:
-                filter_expressions.append("timestamp <= :end_time")
+                filter_expressions.append("#timestamp <= :end_time")
                 expression_attribute_values[":end_time"] = end_time.isoformat()
+                if "#timestamp" not in expression_attribute_names:
+                    expression_attribute_names["#timestamp"] = "timestamp"
 
             if filter_expressions:
                 scan_params["FilterExpression"] = " AND ".join(filter_expressions)
                 scan_params["ExpressionAttributeValues"] = expression_attribute_values
+                if expression_attribute_names:
+                    scan_params["ExpressionAttributeNames"] = expression_attribute_names
 
             logger.info(f"Executing DynamoDB scan with params: Limit={scan_params.get('Limit')}, FilterExpression={scan_params.get('FilterExpression')}")
             response = self.table.scan(**scan_params)
