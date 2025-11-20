@@ -79,6 +79,11 @@ frontend/.vite/
 frontend/dist/
 frontend/node_modules/
 
+# Operator dashboard build artifacts
+operator-dashboard/.vite/
+operator-dashboard/dist/
+operator-dashboard/node_modules/
+
 # Secrets and sensitive configuration
 terraform/terraform.tfvars
 terraform/*.tfvars
