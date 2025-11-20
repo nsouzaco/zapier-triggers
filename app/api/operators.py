@@ -65,7 +65,10 @@ async def get_system_health():
         success_rate = (events_delivered / processed_events * 100) if processed_events > 0 else 0.0
         
         # Determine status
-        if success_rate >= 95:
+        if processed_events == 0:
+            # No events processed - system is healthy (just idle)
+            status = "healthy"
+        elif success_rate >= 95:
             status = "healthy"
         elif success_rate >= 90:
             status = "degraded"
