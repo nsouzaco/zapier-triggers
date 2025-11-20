@@ -58,25 +58,6 @@ class EventProcessor:
         try:
             logger.info(f"Starting event processing: customer_id={customer_id}, event_id={event_id}")
 
-            # Check if this is an urgent Jira ticket event and send email FIRST
-            # (before subscription matching, so email is sent even if no subscriptions match)
-            event_type = payload.get("event_type", "")
-            if event_type == "jira.ticket.urgent":
-                jira_ticket_text = payload.get("jira_ticket_text", "")
-                urgency_reason = payload.get("urgency_reason", "Urgent Jira ticket detected")
-                
-                if jira_ticket_text:
-                    logger.info(f"Sending urgent Jira ticket email for event {event_id}")
-                    email_sent = await email_service.send_urgent_jira_notification(
-                        jira_ticket_text=jira_ticket_text,
-                        urgency_reason=urgency_reason,
-                        event_id=event_id,
-                    )
-                    if email_sent:
-                        logger.info(f"Urgent Jira ticket email sent successfully for event {event_id}")
-                    else:
-                        logger.warning(f"Failed to send urgent Jira ticket email for event {event_id}")
-
             # Get subscriptions for customer
             logger.info(f"Fetching subscriptions for customer: {customer_id}")
             try:
@@ -130,6 +111,7 @@ class EventProcessor:
             delivery_success = False
             delivery_attempts = 0
             last_error = None
+            email_sent_for_event = False  # Track if email has been sent for this event
 
             for subscription in matching_subscriptions:
                 delivery_attempts += 1
@@ -152,6 +134,36 @@ class EventProcessor:
                         f"Event delivered successfully: {event_id} to "
                         f"workflow {subscription.workflow_id}"
                     )
+                    
+                    # After successful webhook delivery, check if this is an urgent Jira ticket
+                    # and send email (simulating Zapier workflow sending email after processing webhook)
+                    # Only send once per event, even if multiple subscriptions succeed
+                    if not email_sent_for_event:
+                        event_type = payload.get("event_type", "")
+                        if event_type == "jira.ticket.urgent":
+                            jira_ticket_text = payload.get("jira_ticket_text", "")
+                            urgency_reason = payload.get("urgency_reason", "Urgent Jira ticket detected")
+                            
+                            if jira_ticket_text:
+                                logger.info(
+                                    f"Sending urgent Jira ticket email for event {event_id} "
+                                    f"after successful webhook delivery"
+                                )
+                                email_sent = await email_service.send_urgent_jira_notification(
+                                    jira_ticket_text=jira_ticket_text,
+                                    urgency_reason=urgency_reason,
+                                    event_id=event_id,
+                                )
+                                if email_sent:
+                                    email_sent_for_event = True
+                                    logger.info(
+                                        f"Urgent Jira ticket email sent successfully for event {event_id} "
+                                        f"after webhook delivery"
+                                    )
+                                else:
+                                    logger.warning(
+                                        f"Failed to send urgent Jira ticket email for event {event_id}"
+                                    )
                 else:
                     last_error = error
                     # Update event status to failed
