@@ -74,6 +74,11 @@ lambda-layer/
 dependencies-layer.zip
 function.zip
 
+# Frontend build artifacts
+frontend/.vite/
+frontend/dist/
+frontend/node_modules/
+
 # Secrets and sensitive configuration
 terraform/terraform.tfvars
 terraform/*.tfvars
