@@ -2,9 +2,11 @@
   "buildCommand": "npm install && npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "cleanUrls": false,
+  "trailingSlash": false,
   "rewrites": [
     {
-      "source": "/operator/(.*)",
+      "source": "/operator",
       "destination": "/operator/index.html"
     }
   ]
