@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
 from app.core.auth import get_customer_id_from_api_key
 from app.models.events import ErrorResponse, EventFilter, EventItem, InboxResponse
@@ -107,5 +107,65 @@ async def get_events(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while retrieving events.",
+        )
+
+
+@router.delete(
+    "/{event_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        401: {"model": ErrorResponse, "description": "Unauthorized"},
+        404: {"model": ErrorResponse, "description": "Event not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+    summary="Delete Event",
+    description="Delete an event by ID. Only the event owner can delete their events.",
+)
+async def delete_event(
+    event_id: str,
+    customer_id: str = Depends(get_customer_id_from_api_key),
+):
+    """
+    Delete an event.
+
+    This endpoint allows customers to delete their own events. The event must
+    belong to the authenticated customer. This is useful for:
+    - Compliance (GDPR/CCPA right to be forgotten)
+    - Storage cost management
+    - Testing and debugging
+    - Marking events as processed
+
+    Args:
+        event_id: Event identifier
+        customer_id: Customer ID from authentication
+
+    Returns:
+        204 No Content on success
+
+    Raises:
+        HTTPException: If event not found or deletion fails
+    """
+    try:
+        deleted = await event_storage.delete_event(
+            customer_id=customer_id,
+            event_id=event_id,
+        )
+
+        if not deleted:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Event not found or you don't have permission to delete it.",
+            )
+
+        logger.info(f"Event deleted successfully: {event_id} by customer {customer_id}")
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting event: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while deleting the event.",
         )
 

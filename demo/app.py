@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import Optional
 
 import requests
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -447,6 +447,47 @@ async def get_inbox_endpoint():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get inbox events: {str(e)}",
+        )
+
+
+@app.delete("/demo/inbox/{event_id}")
+async def delete_event_endpoint(event_id: str):
+    """
+    Delete an event from the Triggers API inbox.
+    
+    This endpoint proxies DELETE requests to the production Triggers API,
+    demonstrating how a backend service should integrate with the API.
+
+    Args:
+        event_id: Event ID to delete
+
+    Returns:
+        204 No Content on success
+    """
+    logger.info(f"Deleting event via demo backend: {event_id}")
+
+    if not TRIGGERS_API_URL or not TRIGGERS_API_KEY:
+        raise ValueError("TRIGGERS_API_URL and TRIGGERS_API_KEY must be set")
+
+    headers = {"Authorization": f"Bearer {TRIGGERS_API_KEY}"}
+    url = f"{TRIGGERS_API_URL}/api/v1/inbox/{event_id}"
+
+    try:
+        response = requests.delete(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        logger.info(f"Event deleted successfully: {event_id}")
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    except requests.exceptions.Timeout:
+        logger.error("Triggers API request timed out")
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="Triggers API request timed out",
+        )
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Triggers API request failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to delete event: {str(e)}",
         )
 
 

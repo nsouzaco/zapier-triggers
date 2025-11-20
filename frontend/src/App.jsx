@@ -166,6 +166,60 @@ function App() {
     }
   }
 
+  const deleteEvent = async (eventId) => {
+    if (!confirm('Are you sure you want to delete this event? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError(null)
+      setSuccess(null)
+
+      // Call demo backend which proxies to production Triggers API
+      const response = await fetch(`${DEMO_API_URL}/demo/inbox/${eventId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+
+      // Check content type before parsing
+      const contentType = response.headers.get('content-type') || ''
+      const isJson = contentType.includes('application/json')
+
+      if (!response.ok) {
+        // Handle error response
+        let errorMessage = response.statusText
+        if (isJson) {
+          try {
+            const errorData = await response.json()
+            errorMessage = errorData.detail || errorData.message || errorMessage
+          } catch {
+            // JSON parse failed, use status text
+          }
+        } else {
+          // Non-JSON error response
+          const text = await response.text()
+          console.error('Non-JSON error response:', text.substring(0, 200))
+          errorMessage = `Server error (${response.status}): ${response.statusText}`
+        }
+        throw new Error(errorMessage)
+      }
+
+      setSuccess('Event deleted successfully')
+      
+      // Reload events after a short delay
+      setTimeout(() => {
+        loadEvents()
+      }, 500)
+    } catch (err) {
+      setError(`Failed to delete event: ${err.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-zapier-gray-50">
       {/* Top Navigation Bar - Zapier Style */}
@@ -366,14 +420,24 @@ function App() {
                               {formatTimestamp(event.timestamp)}
                             </div>
                           </div>
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                            event.status === 'delivered' ? 'bg-green-100 text-green-800' :
-                            event.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                            event.status === 'failed' ? 'bg-red-100 text-red-800' :
-                            'bg-zapier-gray-100 text-zapier-gray-700'
-                          }`}>
-                            {event.status || 'unknown'}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                              event.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                              event.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              event.status === 'failed' ? 'bg-red-100 text-red-800' :
+                              'bg-zapier-gray-100 text-zapier-gray-700'
+                            }`}>
+                              {event.status || 'unknown'}
+                            </span>
+                            <button
+                              onClick={() => deleteEvent(event.event_id)}
+                              disabled={loading}
+                              className="px-3 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md border border-red-200 hover:border-red-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                              title="Delete event"
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </div>
                         <details className="mt-2">
                           <summary className="cursor-pointer text-sm text-zapier-orange hover:text-zapier-orange-dark font-medium">

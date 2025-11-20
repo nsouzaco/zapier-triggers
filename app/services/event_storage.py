@@ -306,6 +306,49 @@ class EventStorageService:
             logger.error(f"Error updating event status in DynamoDB: {e}")
             return False
 
+    async def delete_event(
+        self,
+        customer_id: str,
+        event_id: str,
+    ) -> bool:
+        """
+        Delete an event from DynamoDB.
+
+        Args:
+            customer_id: Customer identifier (for security verification)
+            event_id: Unique event identifier
+
+        Returns:
+            True if successfully deleted, False otherwise
+        """
+        if not self.table:
+            return False
+
+        try:
+            # Verify event belongs to customer before deletion
+            event = await self.get_event(customer_id, event_id)
+            if not event:
+                logger.warning(
+                    f"Event not found or doesn't belong to customer: {event_id} "
+                    f"for customer {customer_id}"
+                )
+                return False
+
+            # Delete the event
+            self.table.delete_item(
+                Key={
+                    "customer_id": customer_id,
+                    "event_id": event_id,
+                }
+            )
+
+            logger.info(f"Event deleted: {event_id} for customer {customer_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error deleting event from DynamoDB: {e}", exc_info=True)
+            return False
+
 
 # Global event storage service instance
 event_storage = EventStorageService()
